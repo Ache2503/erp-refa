@@ -1,0 +1,584 @@
+@startuml
+!theme plain
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 60
+
+' ===========================================================
+' 1. TABLAS MAESTRAS (sin dependencias externas fuertes)
+' ===========================================================
+
+entity "empleados" as empleados {
+    *id_empleado : INT <<PK>>
+    --
+    nombre : VARCHAR(100) NOT NULL
+    apellido : VARCHAR(100) NOT NULL
+    direccion : VARCHAR(200)
+    email : VARCHAR(100) UNIQUE NOT NULL
+    telefono : VARCHAR(20)
+    rfc : VARCHAR(13) UNIQUE
+    numero_seguridad_social : VARCHAR(20) UNIQUE
+    cargo : VARCHAR(50)
+    estatus : VARCHAR(20) NOT NULL (default 'activo')
+    fecha_registro : DATE NOT NULL (default CURRENT_DATE)
+}
+
+entity "clientes" as clientes {
+    *id_cliente : INT <<PK>>
+    --
+    nombre : VARCHAR(100) NOT NULL
+    apellido : VARCHAR(100)
+    direccion : VARCHAR(200)
+    email : VARCHAR(100) UNIQUE
+    telefono : VARCHAR(20)
+    rfc : VARCHAR(13) UNIQUE
+    estatus : VARCHAR(20) NOT NULL (default 'activo')
+    fecha_registro : DATE NOT NULL (default CURRENT_DATE)
+}
+
+entity "tipos_almacen" as tipos_almacen {
+    *id_tipo_almacen : INT <<PK>>
+    --
+    nombre_tipo : VARCHAR(50) UNIQUE NOT NULL
+    descripcion : TEXT
+}
+
+entity "categoria_padre" as categoria_padre {
+    *id_categoria_padre : INT <<PK>>
+    --
+    nombre : VARCHAR(50) NOT NULL
+    descripcion : VARCHAR(200)
+}
+
+entity "categorias" as categorias {
+    *id_categoria : INT <<PK>>
+    --
+    nombre : VARCHAR(100) NOT NULL
+    descripcion : TEXT
+    id_categoria_padre : INT <<FK>> NULL
+}
+
+entity "marcas" as marcas {
+    *id_marca : INT <<PK>>
+    --
+    nombre : VARCHAR(100) UNIQUE NOT NULL
+    descripcion : TEXT
+}
+
+entity "unidades_medida" as unidades_medida {
+    *id_unidad_medida : INT <<PK>>
+    --
+    nombre : VARCHAR(50) NOT NULL
+    abreviatura : VARCHAR(10) UNIQUE NOT NULL
+}
+
+entity "proveedores" as proveedores {
+    *id_proveedor : INT <<PK>>
+    --
+    nombre : VARCHAR(100) NOT NULL
+    direccion : VARCHAR(200)
+    email : VARCHAR(100)
+    telefono : VARCHAR(20)
+}
+
+entity "tipo_vehiculo" as tipo_vehiculo {
+    *id_tipo_vehiculo : INT <<PK>>
+    --
+    nombre : VARCHAR(50) UNIQUE NOT NULL
+    descripcion : TEXT
+}
+
+' ===========================================================
+' 2. TABLAS DEPENDIENTES NIVEL 1
+' ===========================================================
+
+entity "almacenes" as almacenes {
+    *id_almacen : INT <<PK>>
+    --
+    nombre : VARCHAR(100) NOT NULL
+    ubicacion : VARCHAR(200)
+    id_empleado : INT <<FK>> NOT NULL
+    id_tipo_almacen : INT <<FK>> NOT NULL
+}
+
+entity "productos" as productos {
+    *id_producto : INT <<PK>>
+    --
+    nombre : VARCHAR(100) NOT NULL
+    descripcion : TEXT
+    codigo : VARCHAR(50) UNIQUE NOT NULL
+    id_categoria : INT <<FK>> NOT NULL
+    id_marca : INT <<FK>> NOT NULL
+    id_unidad_medida : INT <<FK>> NOT NULL
+    precio : DECIMAL(10,2) NOT NULL (CHECK >=0)
+    estatus : VARCHAR(20) NOT NULL (default 'activo')
+}
+
+entity "proveedor_contacto" as proveedor_contacto {
+    *id_contacto : INT <<PK>>
+    --
+    id_proveedor : INT <<FK>> NOT NULL
+    nombre : VARCHAR(100) NOT NULL
+    telefono : VARCHAR(20)
+    email : VARCHAR(100)
+}
+
+entity "vehiculo" as vehiculo {
+    *id_vehiculo : INT <<PK>>
+    --
+    placa : VARCHAR(20) UNIQUE NOT NULL
+    marca : VARCHAR(50) NOT NULL
+    modelo : VARCHAR(50)
+    anio : INT
+    numero_serie : VARCHAR(50) UNIQUE
+    capacidad_carga : DECIMAL(10,2)
+    id_tipo_vehiculo : INT <<FK>> NOT NULL
+}
+
+' ===========================================================
+' 3. CONDUCTOR (refactorizado)
+' ===========================================================
+
+entity "conductores" as conductores {
+    *id_empleado : INT <<PK>> <<FK>>
+    --
+    licencia_conducir : VARCHAR(50) UNIQUE NOT NULL
+}
+
+' ===========================================================
+' 4. INVENTARIO Y MOVIMIENTOS
+' ===========================================================
+
+entity "productos_almacen" as productos_almacen {
+    *id_producto_almacen : INT <<PK>>
+    --
+    id_producto : INT <<FK>> NOT NULL
+    id_almacen : INT <<FK>> NOT NULL
+    stock : INT NOT NULL (default 0, CHECK >=0)
+    stock_minimo : INT NOT NULL (default 0)
+    stock_maximo : INT NOT NULL (default 0)
+    --
+    uk_producto_almacen (id_producto, id_almacen) UNIQUE
+}
+
+entity "movimiento" as movimiento {
+    *id_movimiento : INT <<PK>>
+    --
+    fecha : DATETIME NOT NULL (default CURRENT_TIMESTAMP)
+    tipo_movimiento : VARCHAR(20) NOT NULL  -- ENTRADA, SALIDA, TRASLADO
+    id_usuario : INT <<FK>> NOT NULL
+    observaciones : TEXT
+}
+
+entity "movimiento_detalle" as movimiento_detalle {
+    *id_movimiento_detalle : INT <<PK>>
+    --
+    id_movimiento : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    id_almacen : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+    precio_unitario : DECIMAL(10,2) NULL
+}
+
+' ===========================================================
+' 5. COMPRAS
+' ===========================================================
+
+entity "compras" as compras {
+    *id_compra : INT <<PK>>
+    --
+    fecha_compra : DATE NOT NULL (default CURRENT_DATE)
+    id_proveedor : INT <<FK>> NOT NULL
+    id_almacen : INT <<FK>> NOT NULL
+    id_empleado : INT <<FK>> NOT NULL
+    tipo_comprobante : VARCHAR(50)
+    serie : VARCHAR(20)
+    numero : VARCHAR(20)
+    subtotal : DECIMAL(10,2) NOT NULL (CHECK >=0)
+    estatus : VARCHAR(20) NOT NULL (default 'pendiente')
+}
+
+entity "compra_detalle" as compra_detalle {
+    *id_compra_detalle : INT <<PK>>
+    --
+    id_compra : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    id_movimiento : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL (CHECK >0)
+    precio_unitario : DECIMAL(10,2) NOT NULL (CHECK >=0)
+    subtotal : DECIMAL(10,2) NOT NULL (CHECK >=0)
+}
+
+' ===========================================================
+' 6. PEDIDOS CLIENTES Y PROVEEDORES
+' ===========================================================
+
+entity "pedidos_clientes" as pedidos_clientes {
+    *id_pedido_cliente : INT <<PK>>
+    --
+    fecha : DATE NOT NULL (default CURRENT_DATE)
+    id_cliente : INT <<FK>> NOT NULL
+    id_empleado : INT <<FK>> NOT NULL
+    id_almacen : INT <<FK>> NOT NULL
+    requiere_envio : BOOLEAN (default FALSE)
+    subtotal : DECIMAL(10,2) NOT NULL (CHECK >=0)
+    impuesto : DECIMAL(10,2) NOT NULL (default 0)
+    total : DECIMAL(10,2) NOT NULL (CHECK >=0)
+    estatus : VARCHAR(20) NOT NULL (default 'pendiente')
+}
+
+entity "pedido_cliente_detalle" as pedido_cliente_detalle {
+    *id_pedido_cliente_detalle : INT <<PK>>
+    --
+    id_pedido_cliente : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL (CHECK >0)
+    precio_unitario : DECIMAL(10,2) NOT NULL
+    subtotal : DECIMAL(10,2) NOT NULL
+}
+
+entity "pedidos_proveedores" as pedidos_proveedores {
+    *id_pedido_proveedor : INT <<PK>>
+    --
+    fecha : DATE NOT NULL (default CURRENT_DATE)
+    id_proveedor : INT <<FK>> NOT NULL
+    id_empleado : INT <<FK>> NOT NULL
+    id_almacen : INT <<FK>> NOT NULL
+    subtotal : DECIMAL(10,2) NOT NULL
+    impuesto : DECIMAL(10,2) NOT NULL (default 0)
+    total : DECIMAL(10,2) NOT NULL
+    estatus : VARCHAR(20) NOT NULL (default 'pendiente')
+}
+
+entity "pedido_proveedor_detalle" as pedido_proveedor_detalle {
+    *id_pedido_proveedor_detalle : INT <<PK>>
+    --
+    id_pedido_proveedor : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+    precio_unitario : DECIMAL(10,2) NOT NULL
+    subtotal : DECIMAL(10,2) NOT NULL
+}
+
+' ===========================================================
+' 7. ENVÍOS Y LOGÍSTICA
+' ===========================================================
+
+entity "envios" as envios {
+    *id_envio : INT <<PK>>
+    --
+    fecha_envio : DATE NOT NULL (default CURRENT_DATE)
+    id_pedido_cliente : INT <<FK>> NOT NULL
+    id_vehiculo : INT <<FK>> NOT NULL
+    id_empleado : INT <<FK>> NOT NULL
+    estatus : VARCHAR(20) NOT NULL (default 'pendiente')
+    --
+    uk_envio_pedido (id_pedido_cliente) UNIQUE
+}
+
+entity "envio_detalle" as envio_detalle {
+    *id_envio_detalle : INT <<PK>>
+    --
+    id_envio : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+}
+
+entity "ruta" as ruta {
+    *id_ruta : INT <<PK>>
+    --
+    origen : VARCHAR(100) NOT NULL
+    destino : VARCHAR(100) NOT NULL
+    distancia : DECIMAL(10,2)
+    tiempo_estimado : TIME
+}
+
+entity "ruta_envio" as ruta_envio {
+    *id_ruta_envio : INT <<PK>>
+    --
+    id_ruta : INT <<FK>> NOT NULL
+    id_envio : INT <<FK>> NOT NULL
+}
+
+entity "mantenimiento_vehiculo" as mantenimiento_vehiculo {
+    *id_mantenimiento : INT <<PK>>
+    --
+    id_vehiculo : INT <<FK>> NOT NULL
+    fecha_mantenimiento : DATE NOT NULL
+    descripcion : TEXT
+    costo : DECIMAL(10,2)
+}
+
+entity "asignacion_transporte" as asignacion_transporte {
+    *id_asignacion : INT <<PK>>
+    --
+    id_envio : INT <<FK>> NOT NULL
+    id_conductor : INT <<FK>> NOT NULL  -- referencia a conductores(id_empleado)
+    fecha_asignacion : DATE NOT NULL (default CURRENT_DATE)
+}
+
+entity "seguimiento_envio" as seguimiento_envio {
+    *id_seguimiento : INT <<PK>>
+    --
+    id_envio : INT <<FK>> NOT NULL
+    fecha_seguimiento : DATETIME NOT NULL (default CURRENT_TIMESTAMP)
+    ubicacion : VARCHAR(100)
+    estatus : VARCHAR(20) NOT NULL
+}
+
+entity "guia_remision" as guia_remision {
+    *id_guia : INT <<PK>>
+    --
+    id_pedido_cliente : INT <<FK>> NOT NULL
+    fecha_guia : DATE NOT NULL (default CURRENT_DATE)
+    id_vehiculo : INT <<FK>> NOT NULL
+    id_conductor : INT <<FK>> NOT NULL
+    estatus : VARCHAR(20) NOT NULL
+}
+
+entity "guia_remision_detalle" as guia_remision_detalle {
+    *id_guia_detalle : INT <<PK>>
+    --
+    id_guia : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+}
+
+' ===========================================================
+' 8. DEVOLUCIONES
+' ===========================================================
+
+entity "devoluciones_clientes" as devoluciones_clientes {
+    *id_devolucion : INT <<PK>>
+    --
+    id_pedido_cliente : INT <<FK>> NOT NULL
+    fecha_devolucion : DATE NOT NULL (default CURRENT_DATE)
+    motivo : TEXT
+    estatus : VARCHAR(20) NOT NULL
+}
+
+entity "devolucion_cliente_detalle" as devolucion_cliente_detalle {
+    *id_devolucion_detalle : INT <<PK>>
+    --
+    id_devolucion : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+}
+
+entity "devoluciones_proveedores" as devoluciones_proveedores {
+    *id_devolucion : INT <<PK>>
+    --
+    id_pedido_proveedor : INT <<FK>> NOT NULL
+    fecha_devolucion : DATE NOT NULL (default CURRENT_DATE)
+    motivo : TEXT
+    estatus : VARCHAR(20) NOT NULL
+}
+
+entity "devolucion_proveedor_detalle" as devolucion_proveedor_detalle {
+    *id_devolucion_detalle : INT <<PK>>
+    --
+    id_devolucion : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+}
+
+' ===========================================================
+' 9. TRASLADOS INTERNOS
+' ===========================================================
+
+entity "traslados_internos" as traslados_internos {
+    *id_traslado : INT <<PK>>
+    --
+    fecha_traslado : DATE NOT NULL (default CURRENT_DATE)
+    id_almacen_origen : INT <<FK>> NOT NULL
+    id_almacen_destino : INT <<FK>> NOT NULL
+    id_empleado : INT <<FK>> NOT NULL
+    estatus : VARCHAR(20) NOT NULL
+    --
+    CHECK (id_almacen_origen <> id_almacen_destino)
+}
+
+entity "traslado_interno_detalle" as traslado_interno_detalle {
+    *id_traslado_detalle : INT <<PK>>
+    --
+    id_traslado : INT <<FK>> NOT NULL
+    id_producto : INT <<FK>> NOT NULL
+    cantidad : INT NOT NULL
+}
+
+' ===========================================================
+' 10. SEGURIDAD Y AUDITORÍA
+' ===========================================================
+
+entity "roles" as roles {
+    *id_rol : INT <<PK>>
+    --
+    nombre : VARCHAR(50) UNIQUE NOT NULL
+    descripcion : TEXT
+}
+
+entity "permisos" as permisos {
+    *id_permiso : INT <<PK>>
+    --
+    nombre : VARCHAR(50) UNIQUE NOT NULL
+    descripcion : TEXT
+}
+
+entity "rol_permiso" as rol_permiso {
+    *id_rol_permiso : INT <<PK>>
+    --
+    id_rol : INT <<FK>> NOT NULL
+    id_permiso : INT <<FK>> NOT NULL
+    --
+    uk_rol_permiso (id_rol, id_permiso) UNIQUE
+}
+
+entity "empleado_rol" as empleado_rol {
+    *id_empleado_rol : INT <<PK>>
+    --
+    id_empleado : INT <<FK>> NOT NULL
+    id_rol : INT <<FK>> NOT NULL
+    --
+    uk_empleado_rol (id_empleado, id_rol) UNIQUE
+}
+
+entity "auditoria" as auditoria {
+    *id_auditoria : INT <<PK>>
+    --
+    id_usuario : INT <<FK>> NOT NULL
+    accion : VARCHAR(50) NOT NULL
+    tabla : VARCHAR(50) NOT NULL
+    fecha : DATETIME NOT NULL (default CURRENT_TIMESTAMP)
+    detalles : TEXT
+}
+
+' ===========================================================
+' 11. CONFIGURACIÓN Y UTILIDADES
+' ===========================================================
+
+entity "configuracion" as configuracion {
+    *id_configuracion : INT <<PK>>
+    --
+    clave : VARCHAR(50) UNIQUE NOT NULL
+    valor : VARCHAR(200) NOT NULL
+    descripcion : TEXT
+}
+
+entity "backups" as backups {
+    *id_backup : INT <<PK>>
+    --
+    fecha_backup : DATETIME NOT NULL
+    usuario : VARCHAR(100) NOT NULL
+    descripcion : TEXT
+    ruta_archivo : VARCHAR(200) NOT NULL
+}
+
+entity "restauraciones" as restauraciones {
+    *id_restauracion : INT <<PK>>
+    --
+    fecha_restauracion : DATETIME NOT NULL
+    usuario : VARCHAR(100) NOT NULL
+    descripcion : TEXT
+    ruta_archivo : VARCHAR(200) NOT NULL
+}
+
+' ===========================================================
+' RELACIONES (TODAS LAS FK)
+' ===========================================================
+
+categorias ||--o{ categoria_padre : "id_categoria_padre"
+
+almacenes }o--|| empleados : "id_empleado"
+almacenes }o--|| tipos_almacen : "id_tipo_almacen"
+
+productos }o--|| categorias : "id_categoria"
+productos }o--|| marcas : "id_marca"
+productos }o--|| unidades_medida : "id_unidad_medida"
+
+proveedor_contacto }o--|| proveedores : "id_proveedor"
+
+vehiculo }o--|| tipo_vehiculo : "id_tipo_vehiculo"
+
+conductores |o--|| empleados : "id_empleado"
+
+productos_almacen }o--|| productos : "id_producto"
+productos_almacen }o--|| almacenes : "id_almacen"
+
+movimiento }o--|| empleados : "id_usuario"
+
+movimiento_detalle }o--|| movimiento : "id_movimiento"
+movimiento_detalle }o--|| productos : "id_producto"
+movimiento_detalle }o--|| almacenes : "id_almacen"
+
+compras }o--|| proveedores : "id_proveedor"
+compras }o--|| almacenes : "id_almacen"
+compras }o--|| empleados : "id_empleado"
+
+compra_detalle }o--|| compras : "id_compra"
+compra_detalle }o--|| productos : "id_producto"
+compra_detalle }o--|| movimiento : "id_movimiento"
+
+pedidos_clientes }o--|| clientes : "id_cliente"
+pedidos_clientes }o--|| empleados : "id_empleado"
+pedidos_clientes }o--|| almacenes : "id_almacen"
+
+pedido_cliente_detalle }o--|| pedidos_clientes : "id_pedido_cliente"
+pedido_cliente_detalle }o--|| productos : "id_producto"
+
+pedidos_proveedores }o--|| proveedores : "id_proveedor"
+pedidos_proveedores }o--|| empleados : "id_empleado"
+pedidos_proveedores }o--|| almacenes : "id_almacen"
+
+pedido_proveedor_detalle }o--|| pedidos_proveedores : "id_pedido_proveedor"
+pedido_proveedor_detalle }o--|| productos : "id_producto"
+
+envios }o--|| pedidos_clientes : "id_pedido_cliente"
+envios }o--|| vehiculo : "id_vehiculo"
+envios }o--|| empleados : "id_empleado"
+
+envio_detalle }o--|| envios : "id_envio"
+envio_detalle }o--|| productos : "id_producto"
+
+ruta_envio }o--|| ruta : "id_ruta"
+ruta_envio }o--|| envios : "id_envio"
+
+mantenimiento_vehiculo }o--|| vehiculo : "id_vehiculo"
+
+asignacion_transporte }o--|| envios : "id_envio"
+asignacion_transporte }o--|| conductores : "id_conductor"
+
+seguimiento_envio }o--|| envios : "id_envio"
+
+guia_remision }o--|| pedidos_clientes : "id_pedido_cliente"
+guia_remision }o--|| vehiculo : "id_vehiculo"
+guia_remision }o--|| conductores : "id_conductor"
+
+guia_remision_detalle }o--|| guia_remision : "id_guia"
+guia_remision_detalle }o--|| productos : "id_producto"
+
+devoluciones_clientes }o--|| pedidos_clientes : "id_pedido_cliente"
+
+devolucion_cliente_detalle }o--|| devoluciones_clientes : "id_devolucion"
+devolucion_cliente_detalle }o--|| productos : "id_producto"
+
+devoluciones_proveedores }o--|| pedidos_proveedores : "id_pedido_proveedor"
+
+devolucion_proveedor_detalle }o--|| devoluciones_proveedores : "id_devolucion"
+devolucion_proveedor_detalle }o--|| productos : "id_producto"
+
+traslados_internos }o--|| almacenes : "id_almacen_origen"
+traslados_internos }o--|| almacenes : "id_almacen_destino"
+traslados_internos }o--|| empleados : "id_empleado"
+
+traslado_interno_detalle }o--|| traslados_internos : "id_traslado"
+traslado_interno_detalle }o--|| productos : "id_producto"
+
+rol_permiso }o--|| roles : "id_rol"
+rol_permiso }o--|| permisos : "id_permiso"
+
+empleado_rol }o--|| empleados : "id_empleado"
+empleado_rol }o--|| roles : "id_rol"
+
+auditoria }o--|| empleados : "id_usuario"
+
+@enduml
