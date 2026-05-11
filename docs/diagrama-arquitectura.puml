@@ -1,0 +1,117 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam ComponentBorderColor #444
+skinparam ComponentBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+skinparam PackageBorderColor #888
+
+title Arquitectura General del Sistema ERP
+
+package "Cliente (Frontend)" as FE {
+  [React SPA] as REACT
+  [Vite Build] as VITE
+  [React Router] as ROUTER
+  [AuthContext] as AUTH_CTX
+  [useApi Hook] as API_HOOK
+
+  package "Pages" as PAGES {
+    [LoginPage]
+    [Dashboard]
+    [VendedorDashboard]
+    [ConductorDashboard]
+    [LogisticaDashboard]
+    [Admin Pages (CRUD)]
+  }
+
+  package "Components" as COMP {
+    [Sidebar]
+    [Layout]
+    [CrudPage]
+    [Badges]
+  }
+}
+
+node "Servidor Backend" as BE {
+  [FastAPI App] as FASTAPI
+
+  database "Base de Datos\nMySQL 8" as DB {
+    [Tables: 37 entidades]
+  }
+
+  package "API Layer" as API {
+    [Auth Router]
+    [Ventas Router]
+    [Productos Router]
+    [Guias Router]
+    [Envios Router]
+    [Asignaciones Router]
+    [Conductores Router]
+    [Vehiculos Router]
+    [Logistica Router]
+    [Clientes Router]
+    [Proveedores Router]
+    [Compras Router]
+    [Inventario Router]
+    [Traslados Router]
+    [Rutas Router]
+  }
+
+  package "Service Layer" as SVC {
+    [AuthService]
+    [VentaCompletaService]
+    [GuiasRemisionService]
+    [ProductoService]
+    [VehiculoService]
+    [AsignacionesService]
+    [InventarioService]
+  }
+
+  package "Repository Layer" as REPO {
+    [BaseRepository]
+    [Entity Repositories]
+  }
+
+  package "Model Layer" as MOD {
+    [SQLAlchemy Models]
+  }
+}
+
+cloud "Docker" as DOCKER {
+  [MySQL Container\n:3307]
+}
+
+' Conexiones frontend → backend
+REACT --> FASTAPI : HTTP / REST\nJSON
+API_HOOK --> FASTAPI : fetch()
+AUTH_CTX --> FASTAPI : JWT Token
+
+' Capas backend
+FASTAPI --> API : enruta peticiones
+API --> SVC : lógica de negocio
+SVC --> REPO : acceso a datos
+REPO --> MOD : ORM
+MOD --> DB : SQLAlchemy
+
+' Base de datos
+FASTAPI --> DB : SQLAlchemy ORM
+DB <--> DOCKER : MySQL 8\npuerto 3307
+
+note right of FASTAPI
+  FastAPI con:
+  - CORS habilitado
+  - Autenticación JWT
+  - Validación Pydantic
+  - Documentación Swagger
+end note
+
+note bottom of REACT
+  React 18 + Vite
+  - react-router-dom v6
+  - Context API
+  - CSS Modules
+  - Fetch API nativa
+end note
+
+@enduml

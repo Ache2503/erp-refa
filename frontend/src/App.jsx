@@ -24,6 +24,7 @@ import AlmacenistaDashboard from './pages/AlmacenistaDashboard';
 import ContadorDashboard from './pages/ContadorDashboard';
 import GerenteDashboard from './pages/GerenteDashboard';
 import AsignacionesPage from './pages/AsignacionesPage';
+import LogisticaDashboard from './pages/LogisticaDashboard';
 
 function PrivateRoute({ children }) {
   const { isAuth, ready } = useAuth();
@@ -82,6 +83,7 @@ function AppRoutes() {
         <Route path="vendedor"    element={<VendedorDashboard />} />
         <Route path="conductor"   element={<ConductorDashboard />} />
         <Route path="asignaciones" element={<AsignacionesPage />} />
+        <Route path="logistica" element={<LogisticaDashboard />} />
         <Route path="*"           element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

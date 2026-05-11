@@ -1,0 +1,169 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam ClassBorderColor #444
+skinparam ClassBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+
+' ============================================================
+' DOMINIO LOGÍSTICO — DIAGRAMA DE CLASES
+' ============================================================
+
+package "Personas" {
+  class Empleados {
+    +id_empleado: int
+    +nombre: string
+    +apellido: string
+    +email: string
+    +cargo: string
+    +password_hash: string
+  }
+  class Clientes {
+    +id_cliente: int
+    +nombre: string
+    +apellido: string
+    +direccion: string
+    +email: string
+    +telefono: string
+  }
+  class Conductores {
+    +id_empleado: int
+    +licencia_conducir: string
+  }
+}
+
+package "Ventas" {
+  class PedidosClientes {
+    +id_pedido_cliente: int
+    +fecha: date
+    +subtotal: decimal
+    +impuesto: decimal
+    +total: decimal
+    +estatus: string
+    +requiere_envio: bool
+  }
+  class PedidoClienteDetalle {
+    +id_pedido_cliente_detalle: int
+    +cantidad: int
+    +precio_unitario: decimal
+    +subtotal: decimal
+  }
+  PedidosClientes *-- PedidoClienteDetalle
+  Clientes --> PedidosClientes
+  Empleados --> PedidosClientes
+  Productos --> PedidoClienteDetalle
+}
+
+package "Catálogo" {
+  class Productos {
+    +id_producto: int
+    +nombre: string
+    +codigo: string
+    +precio: decimal
+    +estatus: string
+  }
+}
+
+package "Transporte" {
+  class Vehiculo {
+    +id_vehiculo: int
+    +placa: string
+    +marca: string
+    +modelo: string
+    +capacidad_carga: decimal
+  }
+  class TipoVehiculo {
+    +id_tipo_vehiculo: int
+    +nombre: string
+  }
+  TipoVehiculo --> Vehiculo
+}
+
+package "Logística" {
+  class Envios {
+    +id_envio: int
+    +fecha_envio: date
+    +estatus: string
+  }
+  class EnvioDetalle {
+    +id_envio_detalle: int
+    +cantidad: int
+  }
+  class GuiaRemision {
+    +id_guia: int
+    +fecha_guia: date
+    +estatus: string
+  }
+  class GuiaRemisionDetalle {
+    +id_guia_detalle: int
+    +cantidad: int
+  }
+  class GuiaTracking {
+    +id_tracking: int
+    +estatus_anterior: string
+    +estatus_nuevo: string
+    +fecha: datetime
+    +ubicacion: string
+    +comentario: string
+  }
+  class AsignacionTransporte {
+    +id_asignacion: int
+    +fecha_asignacion: date
+  }
+  class Ruta {
+    +id_ruta: int
+    +origen: string
+    +destino: string
+    +distancia: decimal
+    +tiempo_estimado: time
+  }
+  class RutaEnvio {
+    +id_ruta_envio: int
+  }
+  class SeguimientoEnvio {
+    +id_seguimiento: int
+    +fecha_seguimiento: datetime
+    +estatus: string
+    +ubicacion: string
+  }
+
+  ' Relaciones logísticas
+  PedidosClientes --> Envios : genera
+  Envios *-- EnvioDetalle
+  Productos --> EnvioDetalle
+  Empleados --> Envios : gestiona
+  Vehiculo --> Envios
+  Conductores --> AsignacionTransporte
+  Envios --> AsignacionTransporte
+  Envios --> SeguimientoEnvio
+  Envios --> RutaEnvio
+  Ruta --> RutaEnvio
+
+  PedidosClientes --> GuiaRemision : documenta
+  GuiaRemision *-- GuiaRemisionDetalle
+  Productos --> GuiaRemisionDetalle
+  Vehiculo --> GuiaRemision
+  Conductores --> GuiaRemision
+  GuiaRemision --> GuiaTracking : historial
+  Empleados --> GuiaTracking : registra
+
+  note top of GuiaTracking
+    Flujo de estatus:
+    emitida → en_transito
+    en_transito → entregado
+    (cualquiera → cancelado)
+  end note
+}
+
+package "Almacenes" {
+  class Almacenes {
+    +id_almacen: int
+    +nombre: string
+    +ubicacion: string
+  }
+  Almacenes --> PedidosClientes
+  Almacenes --> Envios
+}
+
+@enduml

@@ -1,8 +1,13 @@
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.api.deps import get_current_user
+from app.schemas.auth import UserResponse
 from app.services.guias_remision_service import GuiaRemisionService
-from app.schemas.guias_remision import GuiaRemisionCreate, GuiaRemisionResponse, GuiaRemisionFullResponse
+from app.schemas.guias_remision import (
+    GuiaRemisionCreate, GuiaRemisionResponse, GuiaRemisionFullResponse,
+    GuiaEstatusUpdate, GuiaTrackingResponse,
+)
 
 router = APIRouter(prefix="/guias-remision", tags=["Guías de Remisión"])
 
@@ -30,3 +35,25 @@ def obtener_detalle(id_guia: int, db: Session = Depends(get_db)):
 @router.post("", response_model=GuiaRemisionResponse, status_code=status.HTTP_201_CREATED)
 def crear(data: GuiaRemisionCreate, db: Session = Depends(get_db)):
     return GuiaRemisionService(db).crear(data)
+
+
+@router.patch("/{id_guia}/estatus", response_model=GuiaRemisionResponse)
+def actualizar_estatus(
+    id_guia: int,
+    data: GuiaEstatusUpdate,
+    db: Session = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user),
+):
+    return GuiaRemisionService(db).actualizar_estatus(
+        id_guia, data, id_usuario=current_user.id_empleado
+    )
+
+
+@router.get("/{id_guia}/tracking", response_model=list[GuiaTrackingResponse])
+def obtener_tracking(id_guia: int, db: Session = Depends(get_db)):
+    return GuiaRemisionService(db).obtener_tracking(id_guia)
+
+
+@router.get("/estadisticas/kpis")
+def obtener_kpis(db: Session = Depends(get_db)):
+    return GuiaRemisionService(db).obtener_kpis()

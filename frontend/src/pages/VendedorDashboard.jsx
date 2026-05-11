@@ -44,6 +44,7 @@ export default function VendedorDashboard() {
   const [ventas, setVentas] = useState([]);
   const [clientes, setClientes] = useState([]);
   const [conductores, setConductores] = useState([]);
+  const [vehiculos, setVehiculos] = useState([]);
   const [guias, setGuias] = useState([]);
   const [almacenes, setAlmacenes] = useState([]);
   const [productoFilter, setProductoFilter] = useState('');
@@ -65,6 +66,7 @@ export default function VendedorDashboard() {
       http.get('/ventas').then(d => setVentas(d?.data || [])),
       http.get('/clientes').then(d => setClientes(Array.isArray(d) ? d : d?.data || [])),
       http.get('/conductores').then(d => setConductores(Array.isArray(d) ? d : [])),
+      http.get('/vehiculos').then(d => setVehiculos(Array.isArray(d) ? d : d?.data || [])),
       http.get('/guias-remision/detalladas').then(d => setGuias(Array.isArray(d) ? d : [])),
       http.get('/almacenes').then(d => setAlmacenes(Array.isArray(d) ? d : d?.data || [])),
     ]).finally(() => setLoading(false));
@@ -92,6 +94,15 @@ export default function VendedorDashboard() {
       if (prod) items[i].precio_unitario = prod.precio;
     }
     setForm(p => ({ ...p, items }));
+  };
+
+  const handleClienteChange = id => {
+    const c = clientes.find(cl => cl.id_cliente === parseInt(id));
+    setForm(p => ({ ...p, id_cliente: id, destino: c?.direccion || '' }));
+  };
+  const handleAlmacenChange = id => {
+    const a = almacenes.find(al => al.id_almacen === parseInt(id));
+    setForm(p => ({ ...p, id_almacen: id, origen: a?.ubicacion || '' }));
   };
 
   const submitVenta = async () => {
@@ -183,14 +194,14 @@ export default function VendedorDashboard() {
               <div style={{ display: 'grid', gap: 14 }}>
                 <div>
                   <label className="lbl">CLIENTE</label>
-                  <select className="inp" value={form.id_cliente} onChange={e => setForm(p => ({ ...p, id_cliente: e.target.value }))}>
+                  <select className="inp" value={form.id_cliente} onChange={e => handleClienteChange(e.target.value)}>
                     <option value="">Seleccionar cliente…</option>
                     {clientes.map(c => <option key={c.id_cliente} value={c.id_cliente}>{c.nombre} {c.apellido}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="lbl">ALMACÉN</label>
-                  <select className="inp" value={form.id_almacen} onChange={e => setForm(p => ({ ...p, id_almacen: e.target.value }))}>
+                  <select className="inp" value={form.id_almacen} onChange={e => handleAlmacenChange(e.target.value)}>
                     {almacenes.map(a => <option key={a.id_almacen} value={a.id_almacen}>{a.nombre}</option>)}
                   </select>
                 </div>
@@ -220,8 +231,11 @@ export default function VendedorDashboard() {
                         <label className="lbl">VEHÍCULO</label>
                         <select className="inp" value={form.id_vehiculo} onChange={e => setForm(p => ({ ...p, id_vehiculo: e.target.value }))}>
                           <option value="">Seleccionar…</option>
-                          <option value="5">Vehículo 5</option>
-                          <option value="6">Vehículo 6</option>
+                          {vehiculos.map(v => (
+                            <option key={v.id_vehiculo} value={v.id_vehiculo}>
+                              {v.marca} {v.modelo || ''} — {v.placa}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div style={{ flex: 1 }}>

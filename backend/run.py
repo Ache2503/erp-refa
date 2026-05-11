@@ -28,6 +28,10 @@ from app.api.guias_remision.controllers import router as guias_remision_router
 from app.api.rutas.controllers import router as rutas_router
 from app.api.asignaciones.controllers import router as asignaciones_router
 
+from app.models.guia_tracking import GuiaTracking  # noqa
+
+Base.metadata.create_all(bind=engine)
+
 app = FastAPI(
     title=settings.app_name,
     description="Sistema ERP — API REST",

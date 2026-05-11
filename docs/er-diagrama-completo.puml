@@ -1,0 +1,583 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam EntityBorderColor #444
+skinparam EntityBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+left to right direction
+
+' ============================================================
+' MÓDULO: SEGURIDAD Y ACCESO
+' ============================================================
+entity "empleados" as EMP {
+  *id_empleado : INT <<PK>>
+  --
+  *nombre : VARCHAR(100)
+  *apellido : VARCHAR(100)
+  *email : VARCHAR(100) <<UQ>>
+  *estatus : VARCHAR(20)
+  *fecha_registro : DATE
+  direccion : VARCHAR(200)
+  telefono : VARCHAR(20)
+  rfc : VARCHAR(13) <<UQ>>
+  numero_seguridad_social : VARCHAR(20) <<UQ>>
+  cargo : VARCHAR(50)
+  password_hash : VARCHAR(255)
+}
+
+entity "roles" as ROL {
+  *id_rol : INT <<PK>>
+  --
+  *nombre : VARCHAR(50) <<UQ>>
+  descripcion : TEXT
+}
+
+entity "empleado_rol" as EMP_ROL {
+  *id_empleado_rol : INT <<PK>>
+  --
+  *id_empleado : INT <<FK>>
+  *id_rol : INT <<FK>>
+  --
+  <<UQ>> (id_empleado, id_rol)
+}
+
+entity "permisos" as PER {
+  *id_permiso : INT <<PK>>
+  --
+  *nombre : VARCHAR(50) <<UQ>>
+  descripcion : TEXT
+}
+
+entity "rol_permiso" as ROL_PER {
+  *id_rol_permiso : INT <<PK>>
+  --
+  *id_rol : INT <<FK>>
+  *id_permiso : INT <<FK>>
+  --
+  <<UQ>> (id_rol, id_permiso)
+}
+
+entity "auditoria" as AUD {
+  *id_auditoria : INT <<PK>>
+  --
+  *id_usuario : INT <<FK>>
+  *accion : VARCHAR(50)
+  *tabla : VARCHAR(50)
+  *fecha : DATETIME
+  detalles : TEXT
+}
+
+' ============================================================
+' MÓDULO: CLIENTES Y PROVEEDORES
+' ============================================================
+entity "clientes" as CLI {
+  *id_cliente : INT <<PK>>
+  --
+  *nombre : VARCHAR(100)
+  *estatus : VARCHAR(20)
+  *fecha_registro : DATE
+  apellido : VARCHAR(100)
+  direccion : VARCHAR(200)
+  email : VARCHAR(100) <<UQ>>
+  telefono : VARCHAR(20)
+  rfc : VARCHAR(13) <<UQ>>
+}
+
+entity "proveedores" as PROV {
+  *id_proveedor : INT <<PK>>
+  --
+  *nombre : VARCHAR(100)
+  direccion : VARCHAR(200)
+  email : VARCHAR(100)
+  telefono : VARCHAR(20)
+}
+
+entity "proveedor_contacto" as PROV_CON {
+  *id_contacto : INT <<PK>>
+  --
+  *id_proveedor : INT <<FK>>
+  *nombre : VARCHAR(100)
+  telefono : VARCHAR(20)
+  email : VARCHAR(100)
+}
+
+' ============================================================
+' MÓDULO: CATÁLOGO (Productos)
+' ============================================================
+entity "productos" as PROD {
+  *id_producto : INT <<PK>>
+  --
+  *nombre : VARCHAR(100)
+  *codigo : VARCHAR(50) <<UQ>>
+  *id_categoria : INT <<FK>>
+  *id_marca : INT <<FK>>
+  *id_unidad_medida : INT <<FK>>
+  *precio : DECIMAL(10,2)
+  *estatus : VARCHAR(20)
+  descripcion : TEXT
+}
+
+entity "categorias" as CAT {
+  *id_categoria : INT <<PK>>
+  --
+  *nombre : VARCHAR(100)
+  descripcion : TEXT
+  id_categoria_padre : INT <<FK>>
+}
+
+entity "categoria_padre" as CAT_PAD {
+  *id_categoria_padre : INT <<PK>>
+  --
+  *nombre : VARCHAR(50)
+  descripcion : VARCHAR(200)
+}
+
+entity "marcas" as MAR {
+  *id_marca : INT <<PK>>
+  --
+  *nombre : VARCHAR(100) <<UQ>>
+  descripcion : TEXT
+}
+
+entity "unidades_medida" as UM {
+  *id_unidad_medida : INT <<PK>>
+  --
+  *nombre : VARCHAR(50)
+  *abreviatura : VARCHAR(10) <<UQ>>
+}
+
+' ============================================================
+' MÓDULO: ALMACENES E INVENTARIO
+' ============================================================
+entity "almacenes" as ALM {
+  *id_almacen : INT <<PK>>
+  --
+  *nombre : VARCHAR(100)
+  *id_empleado : INT <<FK>>
+  *id_tipo_almacen : INT <<FK>>
+  ubicacion : VARCHAR(200)
+}
+
+entity "tipos_almacen" as T_ALM {
+  *id_tipo_almacen : INT <<PK>>
+  --
+  *nombre : VARCHAR(50) <<UQ>>
+  descripcion : TEXT
+}
+
+entity "productos_almacen" as PROD_ALM {
+  *id_producto_almacen : INT <<PK>>
+  --
+  *id_producto : INT <<FK>>
+  *id_almacen : INT <<FK>>
+  *stock : INT
+  *stock_minimo : INT
+  *stock_maximo : INT
+  --
+  <<UQ>> (id_producto, id_almacen)
+}
+
+entity "movimiento" as MOV {
+  *id_movimiento : INT <<PK>>
+  --
+  *fecha : DATETIME
+  *tipo_movimiento : VARCHAR(20)
+  *id_usuario : INT <<FK>>
+  observaciones : TEXT
+}
+
+entity "movimiento_detalle" as MOV_DET {
+  *id_movimiento_detalle : INT <<PK>>
+  --
+  *id_movimiento : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *id_almacen : INT <<FK>>
+  *cantidad : INT
+  precio_unitario : DECIMAL(10,2)
+}
+
+' ============================================================
+' MÓDULO: COMPRAS (Proveedores)
+' ============================================================
+entity "compras" as COMP {
+  *id_compra : INT <<PK>>
+  --
+  *fecha_compra : DATE
+  *id_proveedor : INT <<FK>>
+  *id_almacen : INT <<FK>>
+  *id_empleado : INT <<FK>>
+  *subtotal : DECIMAL(10,2)
+  *estatus : VARCHAR(20)
+  tipo_comprobante : VARCHAR(50)
+  serie : VARCHAR(20)
+  numero : VARCHAR(20)
+}
+
+entity "compra_detalle" as COMP_DET {
+  *id_compra_detalle : INT <<PK>>
+  --
+  *id_compra : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *id_movimiento : INT <<FK>>
+  *cantidad : INT
+  *precio_unitario : DECIMAL(10,2)
+  *subtotal : DECIMAL(10,2)
+}
+
+' ============================================================
+' MÓDULO: VENTAS (Clientes)
+' ============================================================
+entity "pedidos_clientes" as PED_CLI {
+  *id_pedido_cliente : INT <<PK>>
+  --
+  *fecha : DATE
+  *id_cliente : INT <<FK>>
+  *id_empleado : INT <<FK>>
+  *id_almacen : INT <<FK>>
+  *subtotal : DECIMAL(10,2)
+  *impuesto : DECIMAL(10,2)
+  *total : DECIMAL(10,2)
+  *estatus : VARCHAR(20)
+  requiere_envio : TINYINT(1)
+}
+
+entity "pedido_cliente_detalle" as PED_CLI_DET {
+  *id_pedido_cliente_detalle : INT <<PK>>
+  --
+  *id_pedido_cliente : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+  *precio_unitario : DECIMAL(10,2)
+  *subtotal : DECIMAL(10,2)
+}
+
+' ============================================================
+' MÓDULO: LOGÍSTICA Y TRANSPORTE
+' ============================================================
+entity "envios" as ENV {
+  *id_envio : INT <<PK>>
+  --
+  *fecha_envio : DATE
+  *id_pedido_cliente : INT <<FK>> <<UQ>>
+  *id_vehiculo : INT <<FK>>
+  *id_empleado : INT <<FK>>
+  *estatus : VARCHAR(20)
+}
+
+entity "envio_detalle" as ENV_DET {
+  *id_envio_detalle : INT <<PK>>
+  --
+  *id_envio : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+}
+
+entity "guia_remision" as GUIA {
+  *id_guia : INT <<PK>>
+  --
+  *id_pedido_cliente : INT <<FK>>
+  *fecha_guia : DATE
+  *id_vehiculo : INT <<FK>>
+  *id_conductor : INT <<FK>>
+  *estatus : VARCHAR(20)
+}
+
+entity "guia_remision_detalle" as GUIA_DET {
+  *id_guia_detalle : INT <<PK>>
+  --
+  *id_guia : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+}
+
+entity "guia_tracking" as GTRK {
+  *id_tracking : INT <<PK>>
+  --
+  *id_guia : INT <<FK>>
+  *id_usuario : INT <<FK>>
+  estatus_anterior : VARCHAR(20)
+  *estatus_nuevo : VARCHAR(20)
+  *fecha : DATETIME
+  ubicacion : VARCHAR(100)
+  comentario : TEXT
+}
+
+entity "conductores" as COND {
+  *id_empleado : INT <<PK>> <<FK>>
+  --
+  *licencia_conducir : VARCHAR(50)
+}
+
+entity "vehiculo" as VEH {
+  *id_vehiculo : INT <<PK>>
+  --
+  *placa : VARCHAR(20) <<UQ>>
+  *marca : VARCHAR(50)
+  *id_tipo_vehiculo : INT <<FK>>
+  modelo : VARCHAR(50)
+  anio : INT
+  numero_serie : VARCHAR(50) <<UQ>>
+  capacidad_carga : DECIMAL(10,2)
+}
+
+entity "tipo_vehiculo" as T_VEH {
+  *id_tipo_vehiculo : INT <<PK>>
+  --
+  *nombre : VARCHAR(50) <<UQ>>
+  descripcion : TEXT
+}
+
+entity "mantenimiento_vehiculo" as MANT_VEH {
+  *id_mantenimiento : INT <<PK>>
+  --
+  *id_vehiculo : INT <<FK>>
+  *fecha_mantenimiento : DATE
+  descripcion : TEXT
+  costo : DECIMAL(10,2)
+}
+
+entity "asignacion_transporte" as ASIG_TRANS {
+  *id_asignacion : INT <<PK>>
+  --
+  *id_envio : INT <<FK>>
+  *id_conductor : INT <<FK>>
+  *fecha_asignacion : DATE
+}
+
+entity "ruta" as RUTA {
+  *id_ruta : INT <<PK>>
+  --
+  *origen : VARCHAR(100)
+  *destino : VARCHAR(100)
+  distancia : DECIMAL(10,2)
+  tiempo_estimado : TIME
+}
+
+entity "ruta_envio" as RUTA_ENV {
+  *id_ruta_envio : INT <<PK>>
+  --
+  *id_ruta : INT <<FK>>
+  *id_envio : INT <<FK>>
+}
+
+entity "seguimiento_envio" as SEG_ENV {
+  *id_seguimiento : INT <<PK>>
+  --
+  *id_envio : INT <<FK>>
+  *fecha_seguimiento : DATETIME
+  *estatus : VARCHAR(20)
+  ubicacion : VARCHAR(100)
+}
+
+' ============================================================
+' MÓDULO: PEDIDOS A PROVEEDORES
+' ============================================================
+entity "pedidos_proveedores" as PED_PROV {
+  *id_pedido_proveedor : INT <<PK>>
+  --
+  *fecha : DATE
+  *id_proveedor : INT <<FK>>
+  *id_empleado : INT <<FK>>
+  *id_almacen : INT <<FK>>
+  *subtotal : DECIMAL(10,2)
+  *impuesto : DECIMAL(10,2)
+  *total : DECIMAL(10,2)
+  *estatus : VARCHAR(20)
+}
+
+entity "pedido_proveedor_detalle" as PED_PROV_DET {
+  *id_pedido_proveedor_detalle : INT <<PK>>
+  --
+  *id_pedido_proveedor : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+  *precio_unitario : DECIMAL(10,2)
+  *subtotal : DECIMAL(10,2)
+}
+
+' ============================================================
+' MÓDULO: TRASLADOS INTERNOS
+' ============================================================
+entity "traslados_internos" as TRASL {
+  *id_traslado : INT <<PK>>
+  --
+  *fecha_traslado : DATE
+  *id_almacen_origen : INT <<FK>>
+  *id_almacen_destino : INT <<FK>>
+  *id_empleado : INT <<FK>>
+  *estatus : VARCHAR(20)
+}
+
+entity "traslado_interno_detalle" as TRASL_DET {
+  *id_traslado_detalle : INT <<PK>>
+  --
+  *id_traslado : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+}
+
+' ============================================================
+' MÓDULO: DEVOLUCIONES
+' ============================================================
+entity "devoluciones_clientes" as DEV_CLI {
+  *id_devolucion : INT <<PK>>
+  --
+  *id_pedido_cliente : INT <<FK>>
+  *fecha_devolucion : DATE
+  *estatus : VARCHAR(20)
+  motivo : TEXT
+}
+
+entity "devolucion_cliente_detalle" as DEV_CLI_DET {
+  *id_devolucion_detalle : INT <<PK>>
+  --
+  *id_devolucion : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+}
+
+entity "devoluciones_proveedores" as DEV_PROV {
+  *id_devolucion : INT <<PK>>
+  --
+  *id_pedido_proveedor : INT <<FK>>
+  *fecha_devolucion : DATE
+  *estatus : VARCHAR(20)
+  motivo : TEXT
+}
+
+entity "devolucion_proveedor_detalle" as DEV_PROV_DET {
+  *id_devolucion_detalle : INT <<PK>>
+  --
+  *id_devolucion : INT <<FK>>
+  *id_producto : INT <<FK>>
+  *cantidad : INT
+}
+
+' ============================================================
+' MÓDULO: SISTEMA
+' ============================================================
+entity "configuracion" as CONF {
+  *id_configuracion : INT <<PK>>
+  --
+  *clave : VARCHAR(50) <<UQ>>
+  *valor : VARCHAR(200)
+  descripcion : TEXT
+}
+
+entity "backups" as BKP {
+  *id_backup : INT <<PK>>
+  --
+  *fecha_backup : DATETIME
+  *usuario : VARCHAR(100)
+  *ruta_archivo : VARCHAR(200)
+  descripcion : TEXT
+}
+
+entity "restauraciones" as REST {
+  *id_restauracion : INT <<PK>>
+  --
+  *fecha_restauracion : DATETIME
+  *usuario : VARCHAR(100)
+  *ruta_archivo : VARCHAR(200)
+  descripcion : TEXT
+}
+
+' ============================================================
+' RELACIONES
+' ============================================================
+
+' -- Seguridad --
+EMP ||--o{ EMP_ROL : "tiene"
+ROL ||--o{ EMP_ROL : "asignado a"
+ROL ||--o{ ROL_PER : "tiene"
+PER ||--o{ ROL_PER : "asignado a"
+EMP ||--o{ AUD : "registra"
+
+' -- Productos --
+CAT_PAD ||--o{ CAT : "padre de"
+CAT ||--o{ PROD : "categoriza"
+MAR ||--o{ PROD : "marca"
+UM ||--o{ PROD : "unidad de medida"
+PROD ||--o{ PROD_ALM : "stock en"
+
+' -- Almacenes --
+T_ALM ||--o{ ALM : "tipo de"
+EMP ||--o{ ALM : "encargado"
+ALM ||--o{ PROD_ALM : "contiene"
+ALM ||--o{ MOV_DET : "en"
+
+' -- Movimientos --
+EMP ||--o{ MOV : "realiza"
+MOV ||--o{ MOV_DET : "detalle"
+PROD ||--o{ MOV_DET : "producto"
+
+' -- Proveedores --
+PROV ||--o{ PROV_CON : "contacto"
+PROV ||--o{ COMP : "compra"
+PROV ||--o{ PED_PROV : "pedido a"
+
+' -- Compras --
+EMP ||--o{ COMP : "registra"
+ALM ||--o{ COMP : "destino"
+COMP ||--o{ COMP_DET : "detalle"
+PROD ||--o{ COMP_DET : "producto"
+MOV ||--o{ COMP_DET : "movimiento generado"
+
+' -- Ventas / Pedidos Clientes --
+CLI ||--o{ PED_CLI : "realiza"
+EMP ||--o{ PED_CLI : "atiende"
+ALM ||--o{ PED_CLI : "despacha desde"
+PED_CLI ||--o{ PED_CLI_DET : "detalle"
+PROD ||--o{ PED_CLI_DET : "producto"
+
+' -- Envíos --
+PED_CLI ||--|| ENV : "genera envío"
+VEH ||--o{ ENV : "asignado a"
+EMP ||--o{ ENV : "gestiona"
+ENV ||--o{ ENV_DET : "detalle"
+PROD ||--o{ ENV_DET : "producto"
+COND ||--o{ ASIG_TRANS : "conductor"
+ENV ||--o{ ASIG_TRANS : "asignación"
+ENV ||--o{ SEG_ENV : "seguimiento"
+RUTA ||--o{ RUTA_ENV : "asociada a"
+ENV ||--o{ RUTA_ENV : "tiene ruta"
+
+' -- Guías de Remisión --
+PED_CLI ||--o{ GUIA : "documenta"
+VEH ||--o{ GUIA : "vehículo"
+COND ||--o{ GUIA : "conductor"
+GUIA ||--o{ GUIA_DET : "detalle"
+PROD ||--o{ GUIA_DET : "producto"
+GUIA ||--o{ GTRK : "tracking"
+EMP ||--o{ GTRK : "registra cambio"
+
+' -- Vehículos --
+T_VEH ||--o{ VEH : "tipo de"
+VEH ||--o{ MANT_VEH : "mantenimiento"
+
+' -- Pedidos a Proveedores --
+PROV ||--o{ PED_PROV : "orden de compra"
+EMP ||--o{ PED_PROV : "solicita"
+ALM ||--o{ PED_PROV : "destino"
+PED_PROV ||--o{ PED_PROV_DET : "detalle"
+PROD ||--o{ PED_PROV_DET : "producto"
+
+' -- Traslados Internos --
+ALM ||--o{ TRASL : "origen"
+ALM ||--o{ TRASL : "destino"
+EMP ||--o{ TRASL : "realiza"
+TRASL ||--o{ TRASL_DET : "detalle"
+PROD ||--o{ TRASL_DET : "producto"
+
+' -- Devoluciones Clientes --
+PED_CLI ||--o{ DEV_CLI : "devolución"
+DEV_CLI ||--o{ DEV_CLI_DET : "detalle"
+PROD ||--o{ DEV_CLI_DET : "producto"
+
+' -- Devoluciones Proveedores --
+PED_PROV ||--o{ DEV_PROV : "devolución"
+DEV_PROV ||--o{ DEV_PROV_DET : "detalle"
+PROD ||--o{ DEV_PROV_DET : "producto"
+
+@enduml

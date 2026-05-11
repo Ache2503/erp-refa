@@ -1,0 +1,111 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam ComponentBorderColor #444
+skinparam ComponentBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+skinparam PackageBorderColor #888
+
+title Componentes del Backend (FastAPI)
+
+package "app.api (Controllers)" as API {
+  [auth/controllers] as AUTH_CTRL
+  [ventas/controllers] as VENTA_CTRL
+  [productos/controllers] as PROD_CTRL
+  [guias_remision/controllers] as GUIA_CTRL
+  [envios/controllers] as ENV_CTRL
+  [asignaciones/controllers] as ASIG_CTRL
+  [conductores/controllers] as COND_CTRL
+  [vehiculos/controllers] as VEH_CTRL
+  [logistica/controllers] as LOG_CTRL
+  [almacenes/controllers] as ALM_CTRL
+  [inventario/controllers] as INV_CTRL
+  [compras/controllers] as COMP_CTRL
+  [clientes/controllers] as CLI_CTRL
+  [proveedores/controllers] as PROV_CTRL
+  [pedidos_clientes/controllers] as PED_CTRL
+  [rutas/controllers] as RUT_CTRL
+  [roles/controllers] as ROL_CTRL
+  [empleados/controllers] as EMP_CTRL
+  [categorias/controllers] as CAT_CTRL
+  [marcas/controllers] as MAR_CTRL
+  [tipos_vehiculos/controllers] as TPV_CTRL
+  [tipos_almacen/controllers] as TALM_CTRL
+  [unidades_medida/controllers] as UM_CTRL
+  [auth/deps] as DEPS
+}
+
+package "app.services" as SVC {
+  [AuthService] as AUTH_SVC
+  [VentaCompletaService] as VENTA_SVC
+  [GuiasRemisionService] as GUIA_SVC
+  [ProductoService] as PROD_SVC
+  [VehiculoService] as VEH_SVC
+  [AsignacionesService] as ASIG_SVC
+  [InventarioService] as INV_SVC
+  [AlmacenService] as ALM_SVC
+  [ComprasService] as COMP_SVC
+  [ClienteService] as CLI_SVC
+  [ProveedorService] as PROV_SVC
+  [EmpleadoService] as EMP_SVC
+  [RolService] as ROL_SVC
+  [ConductorService] as COND_SVC
+  [RutaService] as RUT_SVC
+  [LogisticaService] as LOG_SVC
+  [PedidosClientesService] as PED_SVC
+}
+
+package "app.repositories" as REPO {
+  [BaseRepository] as BASE_REPO
+  [Entity Repositories (1 por entidad)] as ENT_REPO
+}
+
+package "app.models" as MOD {
+  [SQLAlchemy Models (37 entidades)] as MODELS
+}
+
+package "app.schemas" as SCH {
+  [Pydantic Schemas] as SCHEMAS
+}
+
+package "app.core" as CORE {
+  [database.py] as DB
+  [config.py] as CFG
+  [security.py] as SEC
+}
+
+' run.py
+[run.py] as RUN
+
+' Conexiones principales
+RUN --> API : registra routers
+API --> SVC : inyecta dependencias
+API --> DEPS : autenticación y roles
+DEPS --> AUTH_SVC : valida JWT
+SVC --> REPO : operaciones CRUD
+SVC --> SCH : validación de datos
+REPO --> MOD : ORM queries
+MOD --> CORE : Base declarativa
+CORE --> DB : engine y sesiones
+
+note top of API
+  Cada router usa:
+  - Depends(get_db)
+  - Depends(get_current_user)
+  - Depends(require_roles)
+end note
+
+note bottom of SVC
+  Los servicios contienen
+  toda la lógica de negocio
+  y lanzan HTTPException
+end note
+
+note bottom of REPO
+  Repositorios aíslan
+  consultas SQLAlchemy
+  y operaciones de BD
+end note
+
+@enduml

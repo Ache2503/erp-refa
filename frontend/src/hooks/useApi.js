@@ -18,7 +18,8 @@ export function api() {
   return {
     get:  (path)       => req('GET',    path),
     post: (path, body) => req('POST',   path, body),
-    put:  (path, body) => req('PUT',    path, body),
-    del:  (path)       => req('DELETE', path),
+    put:   (path, body) => req('PUT',    path, body),
+    patch: (path, body) => req('PATCH',  path, body),
+    del:   (path)       => req('DELETE', path),
   };
 }

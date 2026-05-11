@@ -61,3 +61,21 @@ class GuiaRemisionResponse(BaseModel):
     id_vehiculo: int
     id_conductor: int
     estatus: str
+
+
+class GuiaEstatusUpdate(BaseModel):
+    estatus: str = Field(..., pattern=r"^(emitida|en_transito|entregado|cancelado)$")
+    ubicacion: Optional[str] = None
+    comentario: Optional[str] = None
+
+
+class GuiaTrackingResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id_tracking: int
+    id_guia: int
+    id_usuario: int
+    estatus_anterior: Optional[str] = None
+    estatus_nuevo: str
+    fecha: str
+    ubicacion: Optional[str] = None
+    comentario: Optional[str] = None

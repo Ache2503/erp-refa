@@ -6,7 +6,7 @@ const ALL_MENU = [
   { group:'Personas',   items:[{to:'/empleados',label:'Empleados',ic:'👤'},{to:'/clientes',label:'Clientes',ic:'🏢'},{to:'/proveedores',label:'Proveedores',ic:'🏭'}] },
   { group:'Catálogo',   items:[{to:'/productos',label:'Productos',ic:'📦'},{to:'/categorias',label:'Categorías',ic:'🏷'},{to:'/marcas',label:'Marcas',ic:'✦'}] },
   { group:'Operaciones',items:[{to:'/inventario',label:'Inventario',ic:'🗃'},{to:'/compras',label:'Compras',ic:'🛒'},{to:'/ventas',label:'Ventas',ic:'💳'},{to:'/pedidos',label:'Pedidos',ic:'📋'}] },
-  { group:'Logística',  items:[{to:'/envios',label:'Envíos',ic:'🚚'},{to:'/asignaciones',label:'Asignar Envíos',ic:'📋'},{to:'/traslados',label:'Traslados',ic:'🔄'},{to:'/vehiculos',label:'Vehículos',ic:'🚛'},{to:'/almacenes',label:'Almacenes',ic:'🏬'}] },
+  { group:'Logística',  items:[{to:'/logistica',label:'Dashboard Log.',ic:'📊',end:true},{to:'/envios',label:'Envíos',ic:'🚚'},{to:'/asignaciones',label:'Asignar Envíos',ic:'📋'},{to:'/traslados',label:'Traslados',ic:'🔄'},{to:'/vehiculos',label:'Vehículos',ic:'🚛'},{to:'/almacenes',label:'Almacenes',ic:'🏬'}] },
   { group:'Ventas',     items:[{to:'/vendedor',label:'Vendedor',ic:'👤'},{to:'/conductor',label:'Conductor',ic:'🚚'}] },
   { group:'Sistema',    items:[{to:'/roles',label:'Roles',ic:'🔑'}] },
 ];

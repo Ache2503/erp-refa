@@ -1,0 +1,118 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam ParticipantBorderColor #444
+skinparam ParticipantBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+skinparam SequenceGroupBorderColor #888
+
+title Secuencia: Venta con Envío
+
+actor "Vendedor" as VEND
+participant "Frontend\n(VendedorDashboard)" as FE
+participant "VentaCompletaController\n(POST /ventas/completa)" as VCTRL
+participant "VentaCompletaService" as VSVC
+participant "PedidoCliente\nRepository" as PED_REPO
+participant "GuiaRemision\nRepository" as GUIA_REPO
+participant "ProductoAlmacen\nRepository" as STOCK_REPO
+database "MySQL" as DB
+
+VEND -> FE : 1. Llena formulario\n(cliente, productos,\nalmacén, requiere envío)
+activate FE
+
+VEND -> FE : 2. Marca "Requiere envío"
+FE -> FE : 2.1 Muestra campos:\nvehículo, conductor,\norigen, destino
+
+VEND -> FE : 3. Completa datos de envío\n(vehículo, conductor)
+FE -> FE : 3.1 Auto-completa origen\n= ubicación del almacén
+FE -> FE : 3.2 Auto-completa destino\n= dirección del cliente
+
+VEND -> FE : 4. Hace clic en\n"Realizar Venta"
+FE -> FE : 4.1 Valida campos obligatorios
+
+FE -> VCTRL : POST /ventas/completa\n{id_cliente, id_empleado,\n id_almacen, detalles[],\n envio: {requiere_envio,\n         id_vehiculo,\n         id_conductor,\n         origen, destino}}
+activate VCTRL
+
+VCTRL -> VSVC : crear_venta_con_envio(payload)
+activate VSVC
+
+' ===== Pedido =====
+group Creación del Pedido
+  VSVC -> PED_REPO : create(pedido_data)
+  activate PED_REPO
+  PED_REPO -> DB : INSERT INTO pedidos_clientes\n(fecha, id_cliente, id_empleado,\n id_almacen, subtotal, impuesto,\n total, estatus, requiere_envio)
+  DB --> PED_REPO : pedido_creado
+  PED_REPO --> VSVC : PedidoClientes
+  deactivate PED_REPO
+
+  VSVC -> PED_REPO : create_detalles(pedido.id,\n detalles[])
+  activate PED_REPO
+  PED_REPO -> DB : INSERT INTO\npedido_cliente_detalle\n(productos, cantidades, precios)
+  DB --> PED_REPO : detalles_creados
+  PED_REPO --> VSVC : ok
+  deactivate PED_REPO
+end
+
+' ===== Stock =====
+group Descuento de Inventario
+  loop Por cada producto
+    VSVC -> STOCK_REPO : descontar_stock(id_producto,\n id_almacen, cantidad)
+    activate STOCK_REPO
+    STOCK_REPO -> DB : UPDATE productos_almacen\nSET stock = stock - cantidad\nWHERE id_producto = ?\nAND id_almacen = ?
+    DB --> STOCK_REPO : ok
+    STOCK_REPO --> VSVC : ok
+    deactivate STOCK_REPO
+  end
+end
+
+' ===== Registro de movimiento =====
+group Registro de Movimiento
+  VSVC -> VSVC : Crea registro en\nmovimiento + movimiento_detalle\n(tipo: "salida_venta")
+end
+
+' ===== Envío y Guía =====
+alt requiere_envio == true
+  group Creación de Envío
+    VSVC -> PED_REPO : create_envio(pedido.id,\n id_vehiculo, id_empleado)
+    activate PED_REPO
+    PED_REPO -> DB : INSERT INTO envios\n(id_pedido_cliente, id_vehiculo,\n id_empleado, estatus='pendiente')
+    DB --> PED_REPO : envio_creado
+    PED_REPO --> VSVC : Envios
+    deactivate PED_REPO
+  end
+
+  group Creación de Guía de Remisión
+    VSVC -> GUIA_REPO : create_guia(pedido.id,\n id_vehiculo, id_conductor,\n detalles[])
+    activate GUIA_REPO
+    GUIA_REPO -> DB : INSERT INTO guia_remision\n(id_pedido_cliente, id_vehiculo,\n id_conductor, estatus='emitida')
+    GUIA_REPO -> DB : INSERT INTO\n guia_remision_detalle\n (productos, cantidades)
+    DB --> GUIA_REPO : guia_creada
+    GUIA_REPO --> VSVC : GuiaRemision
+    deactivate GUIA_REPO
+  end
+
+  group Tracking inicial
+    VSVC -> DB : INSERT INTO guia_tracking\n(id_guia, id_usuario,\n estatus_anterior=NULL,\n estatus_nuevo='emitida')
+  end
+end
+
+' ===== Ticket =====
+group Generación de Ticket
+  VSVC -> VSVC : _generar_ticket(pedido,\n cliente, vendedor, detalles)
+  VSVC -> VSVC : Construye:\nfolio, cliente, vendedor,\nfecha, artículos[],\nsubtotal, impuesto, total
+end
+
+' ===== Respuesta =====
+VSVC --> VCTRL : VentaCompletaResponse{\n  id_pedido, id_envio?,\n  id_guia?, ticket{},\n  total, estatus\n}
+deactivate VSVC
+
+VCTRL --> FE : 201 Created\nVentaCompletaResponse
+deactivate VCTRL
+
+FE -> FE : Muestra resultado:\n- Pedido #[id]\n- Envío #[id] (si aplica)\n- Guía #[id] (si aplica)\n- Ticket con detalle
+
+FE --> VEND : ¡Venta realizada con éxito!
+deactivate FE
+
+@enduml

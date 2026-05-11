@@ -1,0 +1,93 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam ActivityBorderColor #444
+skinparam ActivityBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+
+title Flujo Logístico — ERP
+
+' ============================================================
+' PROCESO DE VENTA CON ENVÍO
+' ============================================================
+partition "1. Venta con Envío" {
+  :Vendedor registra venta;
+  :Selecciona cliente;
+  :Agrega productos al pedido;
+  :Selecciona almacén de origen;
+  :Marca "Requiere envío";
+  :Selecciona vehículo y conductor;
+  :Origen → ubicación del almacén;
+  :Destino → dirección del cliente;
+  :Confirma venta;
+
+  if (¿requiere envío?) then (sí)
+    :Sistema crea Pedido + Guía + Envío;
+    :Estatus = Pendiente / Emitida;
+  else (no)
+    :Solo Pedido (entrega directa);
+  endif
+}
+
+' ============================================================
+' PROCESO DE ASIGNACIÓN
+' ============================================================
+partition "2. Asignación de Transporte" {
+  :Lista pedidos pendientes sin envío;
+  :Seleccionar pedido;
+  :Elegir conductor;
+  :Elegir vehículo;
+  :Especificar origen / destino;
+  :Confirmar asignación;
+
+  :Sistema crea:
+  - Envío (estatus: pendiente)
+  - Guía de Remisión (estatus: emitida)
+  - Ruta (si aplica);
+}
+
+' ============================================================
+' PROCESO DE ENTREGA (Conductor)
+' ============================================================
+partition "3. Proceso de Entrega" {
+  :Conductor consulta guías asignadas;
+  :Selecciona guía;
+
+  repeat
+    :Revisa detalle: productos, cliente, ruta;
+    :Inicia viaje;
+    :Cambia estatus a "en_transito";
+    :Sistema guarda tracking (fecha, ubicación);
+    :Llega a destino;
+    :Entrega productos al cliente;
+    :Cambia estatus a "entregado";
+    :Sistema guarda tracking final;
+  repeat while (¿hay más guías?) is (sí)
+  ->no;
+}
+
+' ============================================================
+' PROCESO DE CANCELACIÓN
+' ============================================================
+partition "4. Cancelación" {
+  :Usuario autorizado;
+  :Selecciona guía activa;
+  :Confirma cancelación;
+  :Cambia estatus a "cancelado";
+  :Sistema guarda tracking con motivo;
+  :Guía queda como histórica;
+}
+
+' ============================================================
+' ACTUALIZACIÓN DE INVENTARIO
+' ============================================================
+partition "5. Actualización de Inventario" {
+  :Al confirmar venta;
+  :Sistema descuenta stock en productos_almacen;
+  :Registra movimiento de salida;
+  :Al entregar guía;
+  :Validación final de stock;
+}
+
+@enduml

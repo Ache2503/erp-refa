@@ -3,7 +3,9 @@ from fastapi import HTTPException, status
 from app.repositories.guias_remision_repository import GuiaRemisionRepository
 from app.schemas.guias_remision import GuiaRemisionCreate, GuiaRemisionResponse, GuiaRemisionFullResponse
 from app.schemas.guias_remision import GuiaRemisionDetalleFull, GuiaVehiculoInfo, GuiaVendedorInfo, GuiaClienteInfo, GuiaAlmacenInfo
+from app.schemas.guias_remision import GuiaEstatusUpdate, GuiaTrackingResponse
 from app.models.guia_remision import GuiaRemision
+from app.models.guia_tracking import GuiaTracking
 from app.models.pedidos_clientes import PedidosClientes
 from app.models.empleados import Empleados
 from app.models.clientes import Clientes
@@ -114,3 +116,57 @@ class GuiaRemisionService:
 
     def crear(self, data: GuiaRemisionCreate) -> GuiaRemisionResponse:
         return GuiaRemisionResponse.model_validate(self.repo.create(data))
+
+    def actualizar_estatus(self, id_guia: int, data: GuiaEstatusUpdate,
+                           id_usuario: int) -> GuiaRemisionResponse:
+        guia = self.repo.get_by_id(id_guia)
+        if not guia:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Guía no encontrada")
+
+        estatus_anterior = guia.estatus
+        guia.estatus = data.estatus
+        self.db.commit()
+        self.db.refresh(guia)
+
+        tracking = GuiaTracking(
+            id_guia=id_guia,
+            id_usuario=id_usuario,
+            estatus_anterior=estatus_anterior,
+            estatus_nuevo=data.estatus,
+            ubicacion=data.ubicacion,
+            comentario=data.comentario,
+        )
+        self.db.add(tracking)
+        self.db.commit()
+
+        return GuiaRemisionResponse.model_validate(guia)
+
+    def obtener_tracking(self, id_guia: int) -> list[GuiaTrackingResponse]:
+        guia = self.repo.get_by_id(id_guia)
+        if not guia:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Guía no encontrada")
+        registros = (
+            self.db.query(GuiaTracking)
+            .filter(GuiaTracking.id_guia == id_guia)
+            .order_by(GuiaTracking.fecha.desc())
+            .all()
+        )
+        return [GuiaTrackingResponse.model_validate(r) for r in registros]
+
+    def obtener_kpis(self) -> dict:
+        total = self.db.query(GuiaRemision).count()
+        en_transito = self.db.query(GuiaRemision).filter(
+            GuiaRemision.estatus == "en_transito").count()
+        entregado = self.db.query(GuiaRemision).filter(
+            GuiaRemision.estatus == "entregado").count()
+        pendiente = self.db.query(GuiaRemision).filter(
+            GuiaRemision.estatus == "emitida").count()
+        cancelado = self.db.query(GuiaRemision).filter(
+            GuiaRemision.estatus == "cancelado").count()
+        return {
+            "total_guias": total,
+            "en_transito": en_transito,
+            "entregado": entregado,
+            "pendiente": pendiente,
+            "cancelado": cancelado,
+        }

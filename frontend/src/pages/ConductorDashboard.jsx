@@ -38,6 +38,8 @@ ${g.detalles.map(d => `<tr><td>${d.producto}</td><td>${d.codigo}</td><td style="
   w.print();
 }
 
+const ESTATUS_FLUJO = ['emitida', 'en_transito', 'entregado'];
+
 export default function ConductorDashboard() {
   const { user } = useAuth();
   const http = api();
@@ -46,20 +48,51 @@ export default function ConductorDashboard() {
   const [rutas, setRutas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedGuia, setExpandedGuia] = useState(null);
+  const [tracking, setTracking] = useState({});
+  const [cambiando, setCambiando] = useState(null);
+
+  const loadGuias = () =>
+    http.get('/guias-remision/detalladas').then(d => setGuias(Array.isArray(d) ? d : []));
 
   useEffect(() => {
     Promise.allSettled([
-      http.get('/guias-remision/detalladas').then(d => setGuias(Array.isArray(d) ? d : [])),
+      loadGuias(),
       http.get('/rutas').then(d => setRutas(Array.isArray(d) ? d : [])),
     ]).finally(() => setLoading(false));
   }, []);
 
-  const misGuias = guias.filter(g => g.id_conductor === user?.id_empleado);
+  const loadTracking = async idGuia => {
+    if (tracking[idGuia]) return;
+    try {
+      const data = await http.get(`/guias-remision/${idGuia}/tracking`);
+      setTracking(p => ({ ...p, [idGuia]: Array.isArray(data) ? data : [] }));
+    } catch { setTracking(p => ({ ...p, [idGuia]: [] })); }
+  };
 
+  const cambiarEstatus = async (guia, nuevoEstatus) => {
+    setCambiando(guia.id_guia);
+    try {
+      await http.patch(`/guias-remision/${guia.id_guia}/estatus`, { estatus: nuevoEstatus });
+      await loadGuias();
+      setTracking(p => ({ ...p, [guia.id_guia]: undefined }));
+      if (expandedGuia === guia.id_guia) loadTracking(guia.id_guia);
+    } catch (e) { alert('Error al cambiar estatus: ' + (e.message || '')); }
+    finally { setCambiando(null); }
+  };
+
+  const handleExpandir = idGuia => {
+    const next = expandedGuia === idGuia ? null : idGuia;
+    setExpandedGuia(next);
+    if (next) loadTracking(next);
+  };
+
+  const misGuias = guias.filter(g => g.id_conductor === user?.id_empleado);
   const pendientes = misGuias.filter(g => g.estatus === 'emitida' || g.estatus === 'pendiente').length;
   const totalProductos = misGuias.reduce((s, g) => s + g.detalles.reduce((a, d) => a + d.cantidad, 0), 0);
 
   if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-tertiary)' }}>Cargando panel de conductor…</div>;
+
+  const estatusIcono = { emitida: '📄', en_transito: '🚚', entregado: '✅', cancelado: '❌' };
 
   const TabContent = () => {
     switch (tab) {
@@ -106,95 +139,156 @@ export default function ConductorDashboard() {
               </div>
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {misGuias.map(g => (
-                <div key={g.id_guia} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                  <div
-                    style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '14px 18px', cursor: 'pointer',
-                      background: expandedGuia === g.id_guia ? 'var(--surface-2)' : 'transparent',
-                      borderBottom: expandedGuia === g.id_guia ? '1px solid var(--border)' : 'none',
-                    }}
-                    onClick={() => setExpandedGuia(expandedGuia === g.id_guia ? null : g.id_guia)}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <span style={{ fontSize: '1.1rem' }}>📋</span>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>Guía #{g.id_guia} — Pedido #{g.id_pedido_cliente}</div>
-                        <div style={{ fontSize: '.8rem', color: 'var(--text-tertiary)' }}>
-                          {g.fecha_guia} · {g.cliente.nombre} {g.cliente.apellido}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      {estatusBadge(g.estatus)}
-                      <span style={{ fontSize: '.8rem', color: 'var(--text-tertiary)', transition: 'transform .2s', transform: expandedGuia === g.id_guia ? 'rotate(180deg)' : '' }}>▼</span>
-                    </div>
-                  </div>
+              {misGuias.map(g => {
+                const idxActual = ESTATUS_FLUJO.indexOf(g.estatus);
+                const proxEstatus = idxActual < ESTATUS_FLUJO.length - 1 ? ESTATUS_FLUJO[idxActual + 1] : null;
+                const badgeColors = { emitida: '#f59e0b', en_transito: '#3b82f6', entregado: '#10b981', cancelado: '#ef4444' };
 
-                  {expandedGuia === g.id_guia && (
-                    <div style={{ padding: '16px 18px' }}>
-                      <div style={{ textAlign: 'right', marginBottom: 12 }}>
-                        <button className="btn btn-ghost btn-sm" onClick={() => printGuia(g)}>🖨 Imprimir guía</button>
+                return (
+                  <div key={g.id_guia} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        padding: '14px 18px', cursor: 'pointer',
+                        background: expandedGuia === g.id_guia ? 'var(--surface-2)' : 'transparent',
+                        borderBottom: expandedGuia === g.id_guia ? '1px solid var(--border)' : 'none',
+                      }}
+                      onClick={() => handleExpandir(g.id_guia)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: '1.1rem' }}>📋</span>
+                        <div>
+                          <div style={{ fontWeight: 700 }}>Guía #{g.id_guia} — Pedido #{g.id_pedido_cliente}</div>
+                          <div style={{ fontSize: '.8rem', color: 'var(--text-tertiary)' }}>
+                            {g.fecha_guia} · {g.cliente.nombre} {g.cliente.apellido}
+                          </div>
+                        </div>
                       </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                        <div>
-                          <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Vendedor</h4>
-                          <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 600 }}>{g.vendedor.nombre} {g.vendedor.apellido}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {estatusBadge(g.estatus)}
+                        <span style={{ fontSize: '.8rem', color: 'var(--text-tertiary)', transition: 'transform .2s', transform: expandedGuia === g.id_guia ? 'rotate(180deg)' : '' }}>▼</span>
+                      </div>
+                    </div>
+
+                    {expandedGuia === g.id_guia && (
+                      <div style={{ padding: '16px 18px' }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {proxEstatus && (
+                              <button
+                                className="btn btn-primary btn-sm"
+                                onClick={() => cambiarEstatus(g, proxEstatus)}
+                                disabled={cambiando === g.id_guia}
+                                style={{ background: badgeColors[proxEstatus], border: 'none' }}
+                              >
+                                {cambiando === g.id_guia ? '⋯' : `${estatusIcono[proxEstatus] || ''} Marcar como ${proxEstatus === 'en_transito' ? 'En Tránsito' : proxEstatus.charAt(0).toUpperCase() + proxEstatus.slice(1)}`}
+                              </button>
+                            )}
+                            {g.estatus !== 'cancelado' && (
+                              <button className="btn btn-danger btn-sm" onClick={() => cambiarEstatus(g, 'cancelado')} disabled={cambiando === g.id_guia}>
+                                {cambiando === g.id_guia ? '⋯' : '❌ Cancelar guía'}
+                              </button>
+                            )}
                           </div>
+                          <button className="btn btn-ghost btn-sm" onClick={() => printGuia(g)}>🖨 Imprimir</button>
                         </div>
-                        <div>
-                          <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Cliente</h4>
-                          <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 600 }}>{g.cliente.nombre} {g.cliente.apellido}</div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                          <div>
+                            <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Vendedor</h4>
+                            <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
+                              <div style={{ fontWeight: 600 }}>{g.vendedor.nombre} {g.vendedor.apellido}</div>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Almacén</h4>
-                          <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 600 }}>{g.almacen.nombre}</div>
+                          <div>
+                            <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Cliente</h4>
+                            <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
+                              <div style={{ fontWeight: 600 }}>{g.cliente.nombre} {g.cliente.apellido}</div>
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Vehículo</h4>
-                          <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
-                            <div style={{ fontWeight: 600 }}>{g.vehiculo.marca} {g.vehiculo.modelo || ''}</div>
-                            <div style={{ fontSize: '.8rem', color: 'var(--text-tertiary)' }}>
-                              Placa: {g.vehiculo.placa}
-                              {g.vehiculo.capacidad_carga && ` · Cap. carga: ${g.vehiculo.capacidad_carga} kg`}
+                          <div>
+                            <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Almacén</h4>
+                            <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
+                              <div style={{ fontWeight: 600 }}>{g.almacen.nombre}</div>
+                            </div>
+                          </div>
+                          <div>
+                            <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>Vehículo</h4>
+                            <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 12 }}>
+                              <div style={{ fontWeight: 600 }}>{g.vehiculo.marca} {g.vehiculo.modelo || ''}</div>
+                              <div style={{ fontSize: '.8rem', color: 'var(--text-tertiary)' }}>
+                                Placa: {g.vehiculo.placa}
+                                {g.vehiculo.capacidad_carga && ` · Cap. carga: ${g.vehiculo.capacidad_carga} kg`}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>
-                        Productos ({g.detalles.length} ítems)
-                      </h4>
-                      <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                        <table className="tbl" style={{ margin: 0 }}>
-                          <thead>
-                            <tr>
-                              <th>Producto</th>
-                              <th>Código</th>
-                              <th style={{ textAlign: 'right' }}>Cantidad</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {g.detalles.map((d, i) => (
-                              <tr key={i}>
-                                <td style={{ fontWeight: 500 }}>{d.producto}</td>
-                                <td style={{ color: 'var(--text-tertiary)', fontSize: '.85rem' }}>{d.codigo}</td>
-                                <td style={{ textAlign: 'right', fontWeight: 700 }}>{d.cantidad}</td>
+                        <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 8, letterSpacing: '.5px' }}>
+                          Productos ({g.detalles.length} ítems)
+                        </h4>
+                        <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
+                          <table className="tbl" style={{ margin: 0 }}>
+                            <thead>
+                              <tr>
+                                <th>Producto</th>
+                                <th>Código</th>
+                                <th style={{ textAlign: 'right' }}>Cantidad</th>
                               </tr>
+                            </thead>
+                            <tbody>
+                              {g.detalles.map((d, i) => (
+                                <tr key={i}>
+                                  <td style={{ fontWeight: 500 }}>{d.producto}</td>
+                                  <td style={{ color: 'var(--text-tertiary)', fontSize: '.85rem' }}>{d.codigo}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{d.cantidad}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Tracking Timeline */}
+                        <h4 style={{ fontSize: '.8rem', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginBottom: 12, letterSpacing: '.5px' }}>
+                          📍 Historial de seguimiento
+                        </h4>
+                        {!tracking[g.id_guia] ? (
+                          <div style={{ textAlign: 'center', padding: 12, color: 'var(--text-tertiary)', fontSize: '.85rem' }}>Cargando…</div>
+                        ) : tracking[g.id_guia].length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: 12, color: 'var(--text-tertiary)', fontSize: '.85rem' }}>Sin registros de seguimiento</div>
+                        ) : (
+                          <div style={{ position: 'relative', paddingLeft: 28 }}>
+                            {tracking[g.id_guia].map((t, i) => (
+                              <div key={t.id_tracking} style={{ position: 'relative', paddingBottom: i < tracking[g.id_guia].length - 1 ? 16 : 0 }}>
+                                <div style={{
+                                  position: 'absolute', left: -28, top: 4, width: 14, height: 14, borderRadius: '50%',
+                                  background: badgeColors[t.estatus_nuevo] || '#666',
+                                  border: '2px solid #fff', boxShadow: '0 0 0 2px ' + (badgeColors[t.estatus_nuevo] || '#666'),
+                                }} />
+                                {i < tracking[g.id_guia].length - 1 && (
+                                  <div style={{
+                                    position: 'absolute', left: -22, top: 18, width: 2, height: 'calc(100% - 4px)',
+                                    background: '#ddd',
+                                  }} />
+                                )}
+                                <div style={{ fontSize: '.88rem' }}>
+                                  <span style={{ fontWeight: 600 }}>{estatusIcono[t.estatus_nuevo] || ''} {t.estatus_nuevo.replace('_', ' ')}</span>
+                                  {t.estatus_anterior && <span style={{ color: 'var(--text-tertiary)', fontSize: '.8rem' }}> (desde {t.estatus_anterior.replace('_', ' ')})</span>}
+                                </div>
+                                <div style={{ fontSize: '.78rem', color: 'var(--text-tertiary)', marginTop: 2 }}>
+                                  {new Date(t.fecha).toLocaleString('es-MX')}
+                                  {t.ubicacion && ` · ${t.ubicacion}`}
+                                </div>
+                                {t.comentario && <div style={{ fontSize: '.82rem', color: '#666', marginTop: 2 }}>📝 {t.comentario}</div>}
+                              </div>
                             ))}
-                          </tbody>
-                        </table>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         );

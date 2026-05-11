@@ -1,0 +1,152 @@
+@startuml
+!theme plain
+left to right direction
+skinparam backgroundColor #fafafa
+skinparam ActorBorderColor #444
+skinparam UseCaseBorderColor #444
+skinparam UseCaseBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+
+title Casos de Uso — ERP Logístico
+
+' ============================================================
+' ACTORES
+' ============================================================
+actor "Administrador" as ADMIN
+actor "Vendedor" as VEND
+actor "Transportista\n(Conductor)" as COND
+actor "Almacenista" as ALM
+actor "Contador" as CONT
+actor "Gerente" as GER
+
+' ============================================================
+' MÓDULO: AUTENTICACIÓN
+' ============================================================
+rectangle "Autenticación" {
+  usecase (UC01) as "Iniciar sesión"
+  usecase (UC02) as "Cerrar sesión"
+  usecase (UC03) as "Recuperar contraseña"
+  ADMIN --> UC01
+  VEND --> UC01
+  COND --> UC01
+  ALM --> UC01
+  CONT --> UC01
+  GER --> UC01
+}
+
+' ============================================================
+' MÓDULO: ADMINISTRACIÓN
+' ============================================================
+rectangle "Administración del Sistema" {
+  usecase (UC10) as "Gestionar empleados"
+  usecase (UC11) as "Gestionar clientes"
+  usecase (UC12) as "Gestionar proveedores"
+  usecase (UC13) as "Gestionar roles y permisos"
+  usecase (UC14) as "Gestionar catálogos\n(categorías, marcas, UM)"
+
+  ADMIN --> UC10
+  ADMIN --> UC11
+  ADMIN --> UC12
+  ADMIN --> UC13
+  ADMIN --> UC14
+  GER --> UC10
+  GER --> UC11
+  GER --> UC12
+  GER --> UC14
+  VEND --> UC11
+}
+
+' ============================================================
+' MÓDULO: VENTAS
+' ============================================================
+rectangle "Ventas" {
+  usecase (UC20) as "Registrar venta\n(con/sin envío)"
+  usecase (UC21) as "Consultar mis ventas"
+  usecase (UC22) as "Ver guías de remisión"
+  usecase (UC23) as "Asignar envío a pedido"
+
+  VEND --> UC20
+  VEND --> UC21
+  VEND --> UC22
+  VEND --> UC23
+  CONT --> UC21
+  GER --> UC21
+}
+
+' ============================================================
+' MÓDULO: LOGÍSTICA Y TRANSPORTE
+' ============================================================
+rectangle "Logística y Transporte" {
+  usecase (UC30) as "Consultar guías asignadas"
+  usecase (UC31) as "Cambiar estatus de guía\n(emitida→en_transito→entregado)"
+  usecase (UC32) as "Ver historial de tracking"
+  usecase (UC33) as "Imprimir guía de remisión"
+  usecase (UC34) as "Gestionar vehículos"
+  usecase (UC35) as "Gestionar conductores"
+  usecase (UC36) as "Gestionar rutas"
+  usecase (UC37) as "Ver dashboard logístico\n(KPIs, guías activas)"
+
+  COND --> UC30
+  COND --> UC31
+  COND --> UC32
+  COND --> UC33
+  ADMIN --> UC34
+  ADMIN --> UC35
+  ADMIN --> UC36
+  ADMIN --> UC37
+  GER --> UC37
+}
+
+' ============================================================
+' MÓDULO: INVENTARIO Y ALMACENES
+' ============================================================
+rectangle "Inventario y Almacenes" {
+  usecase (UC40) as "Consultar inventario"
+  usecase (UC41) as "Gestionar productos"
+  usecase (UC42) as "Gestionar almacenes"
+  usecase (UC43) as "Realizar traslados\nentre almacenes"
+  usecase (UC44) as "Registrar compras"
+
+  ALM --> UC40
+  ALM --> UC41
+  ALM --> UC42
+  ALM --> UC43
+  ALM --> UC44
+  ADMIN --> UC40
+  ADMIN --> UC41
+  ADMIN --> UC42
+  GER --> UC40
+  GER --> UC44
+  CONT --> UC44
+}
+
+' ============================================================
+' MÓDULO: REPORTES
+' ============================================================
+rectangle "Reportes" {
+  usecase (UC50) as "Ver dashboard\npanel principal"
+  usecase (UC51) as "Consultar ventas"
+  usecase (UC52) as "Consultar compras"
+  usecase (UC53) as "Ver actividad reciente"
+
+  ADMIN --> UC50
+  GER --> UC50
+  VEND --> UC50
+  COND --> UC50
+  ALM --> UC50
+  CONT --> UC50
+  CONT --> UC51
+  CONT --> UC52
+  GER --> UC53
+}
+
+' ============================================================
+' RELACIONES DE INCLUSIÓN / EXTENSIÓN
+' ============================================================
+UC20 .> UC23 : <<extend>>\nsi requiere envío
+UC31 .> UC32 : <<include>>\nguarda tracking
+UC31 .> UC30 : <<include>>\nconsulta guía
+UC20 .> UC40 : <<include>>\ndescuenta stock
+
+@enduml

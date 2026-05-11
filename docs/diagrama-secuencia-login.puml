@@ -1,0 +1,73 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam ParticipantBorderColor #444
+skinparam ParticipantBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+skinparam SequenceGroupBorderColor #888
+
+title Secuencia: Inicio de Sesión
+
+actor "Usuario" as USER
+participant "Frontend\n(React SPA)" as FE
+participant "AuthController\n(POST /auth/login)" as CTRL
+participant "AuthService" as SVC
+participant "EmpleadoRepository" as REPO
+database "MySQL" as DB
+
+USER -> FE : Ingresa username/password\nhace clic en "Iniciar sesión"
+activate FE
+
+FE -> FE : Valida campos requeridos\n(username, password)
+
+FE -> CTRL : POST /auth/login\n{username, password}
+activate CTRL
+
+CTRL -> SVC : authenticate(username, password)
+activate SVC
+
+SVC -> REPO : get_by_email(username)
+activate REPO
+
+REPO -> DB : SELECT * FROM empleados\nWHERE email = ?
+activate DB
+DB --> REPO : empleado row
+deactivate DB
+
+REPO --> SVC : Empleados object
+deactivate REPO
+
+alt Usuario no encontrado
+  SVC --> CTRL : raise HTTPException(401)
+  CTRL --> FE : 401 Unauthorized\n"Credenciales inválidas"
+  FE --> USER : Muestra error en pantalla
+else Usuario encontrado
+  SVC -> SVC : verify_password(\n  input_password,\n  empleado.password_hash\n)
+
+  alt Contraseña incorrecta
+    SVC --> CTRL : raise HTTPException(401)
+    CTRL --> FE : 401 Unauthorized
+    FE --> USER : Muestra error
+  else Contraseña correcta
+    SVC -> SVC : Consulta roles del empleado\n(empleado_rol + roles)
+    SVC -> SVC : Genera JWT token\n(exp: 30 min)
+
+    SVC --> CTRL : TokenResponse{\n  access_token,\n  user: {id_empleado,\n         nombre_empleado,\n         username,\n         cargo,\n         roles}\n}
+    deactivate SVC
+
+    CTRL --> FE : 200 OK\nTokenResponse
+    deactivate CTRL
+
+    FE -> FE : Guarda token en\nsessionStorage('erp_tk')
+    FE -> FE : Actualiza AuthContext\n(isAuth=true, user)
+
+    FE -> FE : Redirige según rol:\n  Admin → / (Dashboard)\n  Vendedor → /vendedor\n  Transportista → /conductor\n  Almacenista → / (dashboard)\n  Contador → / (dashboard)\n  Gerente → / (dashboard)
+
+    FE --> USER : Panel principal
+  end
+end
+
+deactivate FE
+
+@enduml

@@ -1,0 +1,74 @@
+@startuml
+!theme plain
+skinparam backgroundColor #fafafa
+skinparam NodeBorderColor #444
+skinparam NodeBackgroundColor #fff
+skinparam RectangleBorderColor #444
+skinparam RectangleBackgroundColor #fff
+skinparam ArrowColor #666
+skinparam ArrowThickness 1.5
+
+title Diagrama de Despliegue
+
+node "Servidor de Desarrollo\n(Linux)" as SERVER {
+  rectangle "Frontend (React + Vite)" as FE {
+    [Navegador Web] as BROWSER
+    [http://localhost:5173] as VITE_DEV
+    [Build: dist/] as BUILD
+  }
+
+  rectangle "Backend (Python)" as BE {
+    [Uvicorn ASGI Server] as UVICORN
+    [FastAPI App] as FASTAPI
+    [http://localhost:8000] as API_PORT
+  }
+
+  rectangle "Docker Engine" as DOCKER {
+    [MySQL 8 Container\npuerto: 3307] as MYSQL
+  }
+
+  FE --> BE : HTTP (fetch)\npuerto 5173 → 8000
+  BE --> DOCKER : SQLAlchemy\npymysql\npuerto 3307
+}
+
+rectangle "Archivos de Configuración" as CFG {
+  [backend/.env] as ENV
+  [frontend/.env] as FENV
+}
+
+rectangle "Dependencias" as DEPS {
+  [backend/venv/\nPython 3.12] as PYVENV
+  [frontend/node_modules/\nNode 20.20] as NPM
+}
+
+SERVER --> CFG : variables de entorno
+BE --> PYVENV : paquetes Python
+FE --> NPM : paquetes Node
+
+note right of ENV
+  DB_USER=erp_user
+  DB_PASSWORD=erp_pass
+  DB_HOST=localhost
+  DB_PORT=3306
+  DB_NAME=gestion
+  SECRET_KEY=...
+end note
+
+note right of FENV
+  VITE_API_URL=
+  http://localhost:8000
+end note
+
+note top of BROWSER
+  Usuarios acceden vía
+  navegador web moderno
+  (Chrome, Firefox, Edge)
+end note
+
+note bottom of MYSQL
+  Contenedor Docker
+  con persistencia
+  en volumen local
+end note
+
+@enduml

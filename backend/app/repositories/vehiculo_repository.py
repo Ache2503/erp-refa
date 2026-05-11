@@ -1,6 +1,3 @@
-"""
-Repository — Vehículos
-"""
 from typing import Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
@@ -30,27 +27,11 @@ class VehiculoRepository:
             Vehiculo.placa == placa
         ).first()
 
-    def get_by_conductor(self, id_conductor: int,
-                         skip: int = 0, limit: int = 100) -> list[Vehiculo]:
-        return (
-            self.db.query(Vehiculo)
-            .filter(Vehiculo.id_conductor == id_conductor)
-            .offset(skip).limit(limit).all()
-        )
-
     def get_by_tipo(self, id_tipo_vehiculo: int,
                     skip: int = 0, limit: int = 100) -> list[Vehiculo]:
         return (
             self.db.query(Vehiculo)
             .filter(Vehiculo.id_tipo_vehiculo == id_tipo_vehiculo)
-            .offset(skip).limit(limit).all()
-        )
-
-    def get_by_estado(self, estado: str,
-                      skip: int = 0, limit: int = 100) -> list[Vehiculo]:
-        return (
-            self.db.query(Vehiculo)
-            .filter(Vehiculo.estado == estado)
             .offset(skip).limit(limit).all()
         )
 
